@@ -37,3 +37,79 @@ Google’s approach is fundamentally different because TPUs aren't general-purpo
 | **Intermediate Rep** | **PTX** (Virtual Assembly) | LLVM IR | HLO (High-Level Optimizer) |
 | **Scheduling** | Hardware-driven (Warp) | Hardware-driven (Wavefront) | **Compiler-driven** (Static) |
 | **Key Advantage** | Runs on any NVIDIA GPU | Open-source and transparent | Maximum "Math-per-Watt" |
+
+---
+
+# "Matrix Multiply and Accumulate" (MAC)Operation
+
+**Comparison of how a basic MAC operation is written in CUDA vs. how it is represented in XLA**
+
+In 2026, the way hardware executes a **Matrix Multiply and Accumulate (MAC)** operation—the fundamental building block of AI—differs wildly between GPUs and TPUs.
+
+The following examples demonstrate how **NVIDIA (CUDA)** focuses on managing threads and memory, while **Google (XLA/TPU)** focuses on a "dataflow graph" that the compiler maps to its physical systolic array.
+
+
+## 1. NVIDIA (CUDA): Thread-Centric Matrix Multiply
+In CUDA, you write a "Kernel" from the perspective of a single thread. You must manually calculate memory offsets and manage the movement of data between Global Memory and the fast L1/Shared Memory.
+
+### CUDA C++ Example
+
+CPP code
+```cpp
+// A naive CUDA kernel for C = A * B
+__global__ void matrixMul(float* A, float* B, float* C, int N) {
+    // Calculate the row and column index for this specific thread
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (row < N && col < N) {
+        float value = 0;
+        for (int k = 0; k < N; ++k) {
+            // Manual memory indexing and accumulation
+            value += A[row * N + k] * B[k * N + col];
+        }
+        C[row * N + col] = value;
+    }
+}
+```
+
+* **The Hardware Logic:** This code launches thousands of threads. The hardware groups them into **Warps (32 threads)**. Each thread in the warp executes the `for` loop in lockstep.
+* **Low-Level "PTX" Instruction:** At the silicon level, the Blackwell GPU uses a specific instruction called `mma.sync` (Matrix Multiply-Accumulate), which tells a Warp to collectively hand a small tile of data to the **Tensor Cores**.
+
+
+## 2. Google (XLA): Graph-Centric Matrix Multiply
+You rarely write "kernels" for a TPU. Instead, you write high-level math in a framework like JAX. The **XLA Compiler** then converts this into a "StableHLO" (High-Level Operation) graph.
+
+### JAX / XLA Logic
+
+Python code
+```python
+import jax.numpy as jnp
+from jax import jit
+
+@jit
+def matmul_step(A, B):
+    return jnp.dot(A, B) # The compiler sees this as a single 'dot' node
+```
+
+### The "Under the Hood" HLO (Intermediate Representation)
+XLA transforms that `jnp.dot` into a declarative instruction like this:
+
+Lisp code
+```lisp
+%dot.1 = f32[1024,1024] dot(f32[1024,512] %A, f32[512,1024] %B), 
+         lhs_contracting_dims={1}, rhs_contracting_dims={0}
+```
+
+* **The Hardware Logic:** Unlike CUDA, which manages "who does what," XLA manages "**when** data arrives." 
+* **The Systolic Heartbeat:** XLA schedules the data to flow into the **MXU (Matrix Multiply Unit)**. Because it’s a systolic array, the weights stay inside the logic gates, and the activations "pump" through them. There are no "threads" to manage; only a perfectly timed stream of data.
+
+
+## Summary: How They Differ in Execution
+
+| Concept | NVIDIA (CUDA) | Google (XLA / TPU) |
+| :--- | :--- | :--- |
+| **Control** | **Thread-based:** You tell threads where to go. | **Data-based:** You tell data when to move. |
+| **Memory** | **Explicit:** You move data to "Shared Memory." | **Implicit:** The compiler handles all buffers. |
+| **Optimization** | Done by the **Programmer** (or cuBLAS). | Done by the **Compiler** (XLA). |
+| **Failure Mode** | "Race conditions" or memory leaks. | "Recompilation" or slow graph tracing. |
