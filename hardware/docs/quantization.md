@@ -1,4 +1,4 @@
-# Quantization
+# Model Optimization: Quantization
 
 **Quantization** is the process of taking a high-precision AI model (usually trained in 32-bit or 16-bit decimals) and converting it into a low-precision format (like 8-bit or 4-bit integers). 
 
