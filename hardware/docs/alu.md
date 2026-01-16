@@ -52,7 +52,13 @@ While both are "calculators" inside a processor, the fundamental difference lies
 | **Usage** | OS Logic, Memory Addresses | 3D Graphics, Physics, AI |
 
 
-## 3. Hardware Implementation
+## 3. Why not just use one for everything?
+It is technically possible to do decimal math on an ALU using software (this is how old computers like the Commodore 64 did it), but it is incredibly slow. Conversely, using a "big" FPU to do simple integer addition is a waste of electricity and space.
+
+* **Silicon Efficiency:** ALUs are small. A modern CPU core might have 4 or 5 ALUs to handle hundreds of tiny tasks simultaneously (like calculating where the next pixel goes on your screen).
+* **Mathematical Complexity:** Adding two integers is a simple process of "carrying the one." Adding two decimals requires "aligning the exponents" (making sure the decimal points line up), which requires a much more complex "pipeline" of logic gates.
+
+## 4. Hardware Implementation
 * **Silicon Area:** An FPU is much "larger" (uses more transistors) than an ALU because it must handle exponents and mantissas.
 * **Modern Design:** Most CPU cores contain multiple ALUs and fewer (but very wide) FPUs/SIMD units.
 * **Software Emulation:** If a processor lacks an FPU, it can perform decimal math on the ALU using software libraries, but it is often 10x–100x slower.
