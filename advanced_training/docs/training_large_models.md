@@ -7,15 +7,23 @@ Machine Learning models started evolving with the advancements in the hardware (
 * **Pre 2012:**
   - Small CPUs only (Intel Core i3/i5), convex optimization, limited performance.
   - Limited to Convex optimization.
+  - Hand engineered features, small datasets
+  - Limitations: Human engineering, CPU compute
 * **2012-2018:**
-  - Single GPU models (GTX 1080), non-convex optimizers, better architectures
+  - Single GPU models (GTX 1080), non-convex optimizers (Adam, better versions of SGD), better architectures (network structures), large datasets
+  - Limitations: GPU compute
 * **2019-2022:**
   - Multi-GPU models, multi-dataset models
-  - Transformer Architecture, LAION 5B Dataset
+  - Transformer Architecture (Attention-based models),
+  - LAION 5B Dataset
+  - Limitations: GPU compute + **memory**
 * **2023-Present:**
-  - Frontier models, internet-scale datasets
-  - Petabytes of Web Archives, AI Clusters
+  - Frontier models (massive models - 8GB-400B parameters),
+  - Multi-Node training / AI Clusters / Nodes of GPUs / Data Centers with many Nodes
+  - Internet-scale datasets - Petabytes of Web Archives
+  - Limitations: **GPU memory**
 
+--- 
 
 ## 2012-Present: A Deeper Dive through a different Lens
 The history of machine learning shifted radically around 2010, moving from the era of "feature engineering" (where humans manually defined patterns for computers to find) to "representation learning" (where computers learned the patterns themselves).
