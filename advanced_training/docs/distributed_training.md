@@ -10,7 +10,7 @@ Multiple GPUs
 * Multiple GPUs
 
 ## How can we parallelize the models over these GPUs?
-
+---
 ### Solution 1: Data parallelism (2016-ish)
 
 **Setting**
@@ -60,7 +60,7 @@ graph TD;
 
 Previously, the synchronization used to happen on different machines, nowadays data parallelism happens mostly within a machine. Hence less synchronization required.
 
-
+---
 ### Solution 1.1: Modern Data parallelism
 
 **Setting**
@@ -83,5 +83,42 @@ The amount of communication increases (all GPUs communicating with each other). 
 * Model needs to fit on GPU. Slightly worse than precviouls Model Server-based solution.
 * Some trickiness to synchronization. Hwoever, we can ignore if using PyTorch.
 
+```mermaid
+graph TD;
+    MCA(Model Copy)-->GPU1(GPU 1);
+    MCB(Model Copy)-->GPU2(GPU 2);
+    MCC(Model Copy)-->GPU3(GPU 3);
+    MCD(Model Copy)-->GPU4(GPU 4);
+    GPU1-->DP1(Data Part 1);
+    GPU2-->DP2(Data Part 2);
+    GPU3-->DP3(Data Part 3);
+    GPU4-->DP4(Data Part 4);
+```
+
+---
+### Solution 2: Model parallelism
+
+**Setting**
+* Split model across GPUs
+* Option 1: Split along layers - aka `Pipeline Parallelism`
+  - Pipeline parallelism
+* Option 2: Split each layer i.e. split the tensors, the data - aka `Tensor Parallelism` - not so popular, tricky implementation with > GPUs
+  - Tensor parallelism
+  - Very complex, no longer used
 
 
+#### Pipeline parallelism
+* Each GPU holds a **few consecutive layers** of a network
+* **GPU1** hold dataset
+* GPUs pass activations on in forward
+* GPUs pass gradients on in backward
+* We split the model by hand
+
+```mermaid
+graph TD;
+    MCA(Model: A few layers)-->GPU1(GPU 1);
+    MCB(Model: A few layers)-->GPU2(GPU 2);
+    MCC(Model: A few layers)-->GPU3(GPU 3);
+    MCD(Model: A few layers)-->GPU4(GPU 4);
+    GPU1-->DS(Dataset);
+```
