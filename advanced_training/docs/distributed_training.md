@@ -1,7 +1,17 @@
 # Distributed Training
 
-Multiple GPUs
-* For large models with billions of parameters (subsequently, the memory requirements are huge), we use multiple GPUs train.
+In the context of 2026, **Distributed Training** is no longer just an "option" for high-end researchers—it is the **standard operating procedure** for training any modern Large Language Model (LLM) or generative agent. 
+
+It is the process of spreading the computational workload of training a single model across multiple processors (GPUs or TPUs), often spanning hundreds or thousands of interconnected "nodes" (individual servers).
+
+
+## 1. What Issue Does It Resolve?
+Distributed training addresses the **"Scale Ceiling."** As models grow toward tens of trillions of parameters, they encounter two physical barriers that a single machine cannot overcome:
+
+* **The Memory Wall:** A model like GPT-5 might require **terabytes of VRAM** just to hold the weights. Even the most powerful 2026 GPUs (like the **NVIDIA B200 Ultra with 192GB**) cannot fit the whole model, let alone the "activations" and "gradients" generated during training.
+* **The Time Wall:** Training a massive model on a single GPU would literally take decades. Distributed training reduces this to **weeks or months**.
+
+For large models with billions of parameters (subsequently, the memory requirements are huge), we use **multiple GPUs** to train. How can we parallelize the models over these GPUs?
 
 **Setting**
 * One model
@@ -9,9 +19,13 @@ Multiple GPUs
 * Large dataset
 * Multiple GPUs
 
-## How can we parallelize the models over these GPUs?
----
-### Solution 1: Data parallelism (2016-ish)
+## 2. The Two Core Strategies
+Distributed training generally takes two forms, often used simultaneously:
+
+### Strategy 1: Data Parallelism (DP) (2016-ish)
+
+Each GPU gets a **full copy of the model**, but a **different slice of the data**.
+* **The Workflow:** Each GPU calculates how to improve the model based on its specific data slice, then all GPUs "sync up" to average their findings before taking the next step.
 
 **Setting**
 * One model copy per GPU. One copy resides on Model Server.
@@ -96,7 +110,12 @@ graph TD;
 ```
 
 ---
-### Solution 2: Model parallelism
+
+### Strategy 2: Model Parallelism (MP)
+
+The **model itself is sliced** like a loaf of bread, and each GPU holds only one piece.
+* **Pipeline Parallelism:** Layer 1-10 are on GPU A, Layer 11-20 are on GPU B.
+* **Tensor Parallelism:** A single massive matrix multiplication is split across multiple GPUs to work on it at the same time.
 
 **Setting**
 * Split model across GPUs
@@ -142,7 +161,7 @@ graph TD;
 
 ---
 
-## Memory requirements (revisit)**
+### Memory requirements (revisit)**
 
 * **16 N bytes** without counting activations.
 * **Data parallelism**
@@ -157,3 +176,33 @@ graph TD;
   -  **Optimizer state and the gradients for just that part of the model on the GPU.**
   -  Hence memory requirements is reduced by the number of the GPUs.
     - So, if the nbr of GPUs is 8 to 16, and with some other optimizations like mixed-precision training, we can train models with 70 or 100 billion parameters with higher-end GPUs with 80 or so GB memory each.
+
+---
+
+## 3. Advantages & Challenges
+
+### Advantages
+* **Infinite Scalability:** Theoretically, you can keep adding chips to handle larger datasets and larger models.
+* **Higher Throughput:** You process millions of tokens per second across the cluster.
+* **Fault Tolerance:** Modern 2026 clusters can "checkpoint" progress, so if one GPU fails, the rest of the 10,000-chip cluster doesn't have to restart from scratch.
+
+### Challenges / Shortcomings
+* **Communication Overhead:** The "Sync" step is the killer. If the network between GPUs isn't fast enough, the chips sit idle waiting for data from their neighbors (this is why **NVLink 5.0** and **InfiniBand** are so expensive).
+* **The "Straggler" Problem:** If one GPU in a cluster of 1,000 is slightly slower, the entire training run slows down to match that one "straggler."
+* **Orchestration Complexity:** Managing the software to keep 10,000 chips perfectly synchronized is an immense engineering feat.
+
+---
+
+## 4. Recent Advancements (2025–2026)
+
+### A. Fully Sharded Data Parallelism (FSDP) / ZeRO-3
+Instead of keeping a full copy of the model on every GPU (which wastes memory), FSDP "shards" (breaks up) the weights, gradients, and optimizer states. A GPU only fetches the specific piece of the model it needs for a specific calculation, then throws it away to save space.
+
+### B. Optical Interconnects (OCS)
+Google’s TPU v7 and NVIDIA’s Blackwell clusters now use **optical switching**. Instead of electrical cables, they use mirrors and light. This allows the cluster to "rewire" its own internal network architecture in real-time to better fit the specific model being trained.
+
+### C. Expert Parallelism (MoE)
+For **Mixture-of-Experts (MoE)** models, distributed training now routes data only to specific "expert" GPUs. This allows a 10-trillion parameter model to behave like a much smaller model during training, saving massive amounts of compute.
+
+---
+
