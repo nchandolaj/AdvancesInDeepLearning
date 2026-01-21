@@ -107,12 +107,28 @@ graph TD;
   - Very complex, no longer used
 
 
-#### Pipeline parallelism
+#### Option 1: Pipeline parallelism
 * Each GPU holds a **few consecutive layers** of a network
 * **GPU1** hold dataset
 * GPUs pass activations on in forward
 * GPUs pass gradients on in backward
 * We split the model by hand
+
+**Process**
+* GPU1 holds the **entire dataset**.
+* GPU1 takes it thourgh the first few layers and pass the **activations** to the next GPU.
+* Other GPUs do the same, some GPUs may receive activations from other previous layers as well e.g. in the case of skip connections.
+* The same play happens in reverse (from GPU4 -> GPU3 -> GPU2- GPU1) for **gradients** in the backward pass.
+* GPU4 has to be passed the **labels** from GPU1. 
+
+**Issue**
+* Bubbles
+  - In its vanilla form of this solution, only one GPU works at a time; the other GPUs sit idle.
+
+**Solution**
+* Instead of feeding one batch of data through the GPU, we feed **multiple micro batches** through, i.e. **split batch into parts**.
+* Bubbles still exist but is much smaller.
+
 
 ```mermaid
 graph TD;
@@ -120,5 +136,24 @@ graph TD;
     MCB(Model: A few layers)-->GPU2(GPU 2);
     MCC(Model: A few layers)-->GPU3(GPU 3);
     MCD(Model: A few layers)-->GPU4(GPU 4);
-    GPU1-->DS(Dataset);
+    GPU1-->DS(Entire Dataset);
+    GPU4-->L(Labels from GPU1)
 ```
+
+---
+
+## Memory requirements (revisit)**
+
+* **16 N bytes** without counting activations.
+* **Data parallelism**
+  - Each GPU needs to hold entire model.
+  - Original memory requirement. Not ideal.
+* **Model parallelism**
+  - Split model across the GPUs.
+  - Tricky to implement 
+* **Pipeline parallelism**
+  -  Creates bubbles, but can be reduced.
+  -  **Split model weights across different GPUs.**
+  -  **Optimizer state and the gradients for just that part of the model on the GPU.**
+  -  Hence memory requirements is reduced by the number of the GPUs.
+    - So, if the nbr of GPUs is 8 to 16, and with some other optimizations like mixed-precision training, we can train models with 70 or 100 billion parameters with higher-end GPUs with 80 or so GB memory each.
