@@ -198,15 +198,44 @@ Beyond the three standard stages, the ecosystem has expanded to handle even more
 
 # Algorithm: Reduce-Scatter
 
+In **ZeRO-1**, the primary goal is to partition the **Optimizer States** across all GPUs to save memory. While Stage 1 does not partition gradients or parameters, it utilizes the **Reduce-Scatter** collective communication primitive to efficiently manage how those gradients are processed and assigned to their respective "owners."
+
+Here is how the Reduce-Scatter algorithm functions within the context of a ZeRO-1 training step:
+
+## 1. The Core Objective
+In standard Data Parallelism, GPUs perform an `All-Reduce` to sync gradients. An `All-Reduce` is mathematically equivalent to a **Reduce-Scatter** followed by an **All-Gather**. 
+
+In ZeRO-1, we stop halfway through that process. Instead of every GPU ending up with a full copy of the summed gradients, each GPU only keeps the piece of the gradient that corresponds to the **Optimizer States** it is responsible for.
+
+## 2. The Step-by-Step Mechanism
+Imagine you have 4 GPUs ($G_0$ to $G_3$) and a model's gradients divided into 4 corresponding blocks ($B_0$ to $B_3$).
+
+1.  **Local Gradients:** Each GPU completes its backward pass and generates its own local gradients for the entire model.
+2.  **The "Reduce" Phase:** The GPUs communicate so that the gradients for $B_0$ are summed and sent to $G_0$, $B_1$ to $G_1$, and so on.
+3.  **The "Scatter" Phase:** Once the reduction is complete, $G_0$ discards $B_1, B_2, B_3$. It only keeps the averaged gradient for $B_0$.
+4.  **Local Update:** Each GPU now applies its partitioned optimizer states (momentum, variance) to only its specific block of gradients.
+
+## 3. Why it Matters for ZeRO-1
+By using Reduce-Scatter instead of a full All-Reduce during the gradient synchronization phase, ZeRO-1 achieves two major things:
+
+* **Memory Efficiency:** Since $G_0$ only needs to update parameters in $B_0$, it doesn't need to store the optimizer states for the rest of the model. The Reduce-Scatter ensures it only receives the data it actually needs to process.
+* **Communication Parity:** Interestingly, Reduce-Scatter followed by an All-Gather (used in Stage 2/3) costs the exact same amount of data transfer as a standard All-Reduce ($2 \times \text{data size}$). ZeRO-1 is essentially "pre-sorting" the data to the correct GPU.
+
+## Comparison of Primitives
+
+| Algorithm | Result on each GPU | Used in ZeRO Stage |
+| :--- | :--- | :--- |
+| **All-Reduce** | Full copy of summed gradients | Standard Data Parallel |
+| **Reduce-Scatter** | A unique $1/N$ slice of summed gradients | Stage 1 & 2 |
+| **All-Gather** | Collects all slices to form a full model | Stage 3 (Forward/Backward) |
+
+---
+
+# Algorithm: All-Gather
 
 
 ---
 
-# Algorithm: Reduce-Scatter
-
-
----
-
-# Algorithm: Reduce-Scatter
+# Algorithm: All-Gather
 
 
