@@ -74,7 +74,7 @@ Optimizer state is only used once per step.
 
 ---
 
-## Stage 2: Gradient Partitioning ($P_g$)
+## ZeRO-2 Or Stage 2: Gradient Partitioning ($P_g$)
 
 ### How it works
 * Building on Stage 1, the **gradients are also partitioned**.
@@ -108,7 +108,7 @@ Optimizer state is only used once per step.
 
 ---
 
-## Stage 3: Parameter Partitioning ($P_p$)
+## ZeRO-3 Or Stage 3: Parameter Partitioning ($P_p$)
 
 ### How it works
 * This is the most aggressive stage. The **model parameters are partitioned**.
@@ -158,7 +158,7 @@ To understand why ZeRO is necessary, consider a model with $\Psi$ parameters usi
 
 ---
 
-### Fully Sharded Data Parallel (FSDP)
+### ZeRO FSDP: Fully Sharded Data Parallel
 
 Used to train the largest llama models at Meta, and other companies for large models.
 
