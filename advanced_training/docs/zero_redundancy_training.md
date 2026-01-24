@@ -64,7 +64,8 @@ Optimizer state is only used once per step.
   * 12-16 N bytes -> 4 N + 12 N / M bytes - *12 N has to do with Zero-1 stores **two copies** of the weights*
   * 3-4 X for large enough M - *this allows us to train models that are **3 to 4 times** larger than we could otherwise*
 
-**Synchronization:** Requires synchronization through **reduce-scatter** algorithm (NCCL library).
+**Synchronization:** One synchronization, after each forward and backwards call, to synchronize our weights and gradients. 
+* Requires synchronization through **reduce-scatter** algorithm (NCCL library).
 * It sums up gradients across multiple GPUs, and automatically split and distribute the weights onto different GPUs.
 
 **Execution:**
@@ -97,11 +98,13 @@ Optimizer state is only used once per step.
   - Keep gradient corresponding to GPUs optimizer state
 
 **Memory requirements:** Reduces memory consumption
-* 12-16 N bytes -> 2 N + 16 N / M bytes - *its 16 N because it stores weights and gradients in higher precision*
+* 12-16 N bytes -> 2 N + 16 N / M bytes - *its **16 N** because in ZeRO-1/2/3, the **weights and gradients are stored in higher precision** on each GPU*
 * 6-8 X large enough M - *this allows us to train models that are **6 to 8 times** larger than we could otherwise*
 
-**Synchronization:** Requires synchronization through **reduce-scatter**, **all-reduce**
-* Call all-reduce every time we calculate a gradient, because we no longer have the memory to store all gradients on the current GPU.
+**Synchronization:** Synchronization called every single time we compute the gradient, because we dont have the memory to store all gradients on a single GPU.
+* Requires synchronization through **reduce-scatter**, **all-reduce**
+* Need to distribute all the updated weights to all the GPUs
+* Call all-reduce every time we calculate a gradient, because we no longer have the memory to store all gradients on the current GPU, and synchronize the gradient.
 
 ---
 
@@ -116,6 +119,9 @@ Memory consumption **scales linearly** with the number of GPUs. This allows you 
 
 ### Detailed Discussion
 
+Each GPU only keeps a subset of the weights, a subset of the gradients, and a subset of the momentums.
+Every single time we call forward or backward, every time we need the weights, we synchronize them between all the GPUs. 
+
 * Only store weights that are currently required
 * In forward / backward
   * **all-gather**
@@ -124,10 +130,12 @@ Memory consumption **scales linearly** with the number of GPUs. This allows you 
 * Use bf16 weights or original fp32
 
 **Memory requirements:** 
+* 12-16 N bytes -> 16 N / M bytes - *its **16 N** because in ZeRO-1/2/3, the **weights and gradients are stored in higher precision** on each GPU*
+* 50+ X for large enough M - *this allows us to train models that are more than **50 X times** in the size of the model than we could otherwise*
 
-
-**Synchronization:**
-
+**Synchronization:** Synchronization called every time we need the weights when we call forward or we call backwards.
+* Requires synchronization through **reduce-scatter**, **all-reduce**, **all-gather** for each layer.
+* With this, the main bottleneck is jsut sending chunks of our model from GPU to GPU. Previously, memory was the main bottleneck.
 
 ---
 
@@ -143,6 +151,36 @@ To understand why ZeRO is necessary, consider a model with $\Psi$ parameters usi
 | **Total per GPU** | **$16\Psi$** | **$16\Psi / N$** |
 
 *(Where $N$ is the number of GPUs/devices)*
+
+* **ZeRO-1** and **ZeRO-2** are quite popular. 
+* **ZeRO-3** implementation is sub-optimal.
+* People use **Fully Sharded Data Parallelism** more often, which use the same idea as **ZeRO-3** but is **less synchronization** heavy.
+
+---
+
+### Fully Sharded Data Parallel (FSDP)
+
+Used to train the largest llama models at Meta, and other companies for large models.
+
+**FSDP**: Efficient implementation of ZeRO-3 in PyTorch
+  - Synchronize groups (Units) of layers.
+  - Efficient scheduling of communication and computation.
+
+**Synchronization**
+- Synchronization of gradients happens in groups of forward and backward call, Not after each individual forward and backward call,
+- More communication efficient.
+- Some scheduling improvements as well.
+
+**Hybrid Sharding**
+* 8-16 GPUs per server
+* Shard within server. We split the model across a smaller subset of GPUs (on the same node or nodes closer to each other), instead of across all the GPUs we have.
+* Regular data parallel (share gradient) between servers (different groups)
+
+**Memory requirements**
+* ZeRO / FSDP
+* 16 N / M bytes without counting activations
+* For M GPUs
+  * Good solution for GPU-rich people
 
 ---
 
