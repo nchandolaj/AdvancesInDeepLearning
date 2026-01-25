@@ -248,6 +248,9 @@ flowchart LR
 # Unified Diagram with ZeRO-1/2/3 strategies
 
 ### Extended Reduce-Scatter context (pre-steps + backward)
+
+**Canonical ZeRO-1 flow**
+
 ```mermaid
 flowchart TD
     A[Mini Batch Input] --> B[Forward Pass<br/>Compute activations]
@@ -266,6 +269,14 @@ flowchart TD
 ```
 
 #### ZeRO-1 (only optimizer state is sharded)
+
+**ZeRO 1**
+Forward full → Backward full → Reduce scatter once
+
+**Key point**
+* Gradients exist in full briefly
+* Reduce-scatter happens after gradient computation
+
 ```mermaid
 flowchart TD
     P[Full Parameters<br/>Replicated] --> B[Forward Pass]
@@ -276,6 +287,14 @@ flowchart TD
 ```
 
 #### ZeRO-2 (gradients and optimizer state sharded)
+
+**ZeRO 2**
+Forward full → Backward layer → Reduce scatter per layer
+
+**Key point**
+* Reduce-scatter happens **layer by layer**
+* Memory is freed earlier than ZeRO-1
+
 ```mermaid
 flowchart TD
     P[Full Parameters<br/>Replicated] --> B[Forward Pass]
@@ -289,6 +308,15 @@ flowchart TD
 ```
 
 #### ZeRO-3 (everything sharded)
+
+**ZeRO-3**
+Gather params → Compute → Reduce scatter → Free
+
+**Key point**
+* Parameters are gathered **just in time**
+* Reduce-scatter immediately follows gradient computation
+* Maximum memory efficiency
+
 ```mermaid
 flowchart TD
     A[Parameter Shards<br/>Per Rank]
