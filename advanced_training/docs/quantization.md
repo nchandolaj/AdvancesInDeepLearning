@@ -39,3 +39,86 @@ $$E = x - Q(x)$$
 
 Where $x$ is the original value and $Q(x)$ is the quantized value. The goal of advanced quantization techniques is to minimize this error so the model's output remains virtually identical to the high-precision version.
 
+---
+
+# Discussion
+
+## Memory Requirements
+
+Just running the forward pass (e.g. inference) for model with N paramameters requires 4 N bytes.
+
+Without optimization
+* Model parameters : N
+* Weights: N floats 
+* 4 N bytes w/o counting activations
+
+8 B parameter model (e.g. llama 3.1)
+  * 32 GB  memory for just weights
+  * So, even for inference alone, only a few advanced NVIDIA GPUs (A100, etc.) will fit the model.
+  * Fast GPU memory HBM3 memory is quite expensive, and an engineering problem.
+  * **bfloat16** (1-bit Sign, 8-bits Exponent, 7-bits Fraction)
+  *   If we may use bfloat16 for weights, we can reduce memory requirements to say 16 GB.
+    * With this loss in precision, we **lose fine-grained differences** between different values.
+    * Also, for computation in bfloat16, we will have truncation (approximation) issue. While this may be an issue for computation, it is not a problem in storing the paramaeters on bfloat16.
+    * So, how about going even lower... Float8
+  * **float8** (1-bit Sign, 4-bits Exponent, 3-bits Fraction) 
+    * Precision is limited (1.06 and 1.00 will look the same)
+  * **float4** (1-bit Sign, 2-bits Exponent, 1-bit Fraction) 
+    * We can't go to float4 for deep networks. It can store just a few values: 0.5, 1, 1.5, 2, 3, Inf, NaN, -ve of all these
+
+### Integer Quantization
+Instead opf using floats / precision, there is a better way to store values - **Integer Quantization** (2 types - Scale and Affline)
+
+#### 1. Integer Scale Quantization
+
+Quantization Error: T / (2^(k-1) - 1)
+
+Weights: NK/8 + 2 bytes
+
+#### 2. Integer Affine Quantization
+
+Quantization Error: (B - A) / (2^k - 1) ; B is the smallest and A is the largest values of our range
+
+Weights: NK/8 + 4 bytes
+
+
+Both types of integer quantization are reliant on the largest possible value of your weights in your network. 
+
+So, if any weight is absurdly large, for any reason, the entire quantization is messed up.
+* This can be resolved by **Blockwise Quantization**
+
+### Blockwise Quantization
+
+Instead of quantizing the entire networks weights into the same fixed range, we compute **blocks of weights**.
+And we store them together with the **quantized weights for each block**.
+
+### Beyond Linear Quantization
+There are other types of quantization techniques.
+
+### 8-bit Adam
+
+Quantize 1st and 2nd momentum in Adam
+* 1st momentum term: int8
+* 1st momentum term: uint8
+* Non-linear quantization
+Requires "stable" embeddings for LLMs
+* 32-bit optimizer states, normalization
+
+### Stochastic Rounding
+How to train with quantized weights?
+* Deterministic rounding
+* Stochastic rounding
+
+## How low can we go?
+
+* GPT-style LLM can store about 2 bits of information per parameter
+  * Under ideal conditions
+* 4 bits in practice
+  * Only after training!
+
+## TLDR;
+Training:
+* Quantization helps reduce large memory requirements, say with 8-bit Adam, we need 6 N bytes (2N Weight bf16, 2N Gradient bf16, 1N Momentum int8 each, Total 6N bytes)
+Inference:
+* Quantization helps reduce large memory requirements, say for N parameters, we use 1/2 N bytes only.
+
