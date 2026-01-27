@@ -1,6 +1,6 @@
 # Quantization
 
-In the world of Deep Learning, **Quantization** is essentially the art of "downsizing" a neural network without making it lose its mind. 
+In the world of Deep Learning, **Quantization** is essentially the art of "downsizing" a neural network. 
 
 Training high-performance models usually requires high-precision math, but running those models on a phone or an IoT device is like trying to fit a grand piano into a studio apartment. Quantization solves this by reducing the precision of the model's weights and activations.
 
@@ -15,7 +15,7 @@ By mapping the wide range of floating-point numbers into a smaller "bucket" of i
 
 
 ## 2. Why Do We Do It?
-If you're wondering why we'd purposely make our data "less accurate," it comes down to three major wins:
+We make our data "less accurate," but it comes down to three major wins:
 
 * **Memory Efficiency:** Moving from 32-bit to 8-bit cuts your model size by **4x**. This is the difference between an app being 500MB or 125MB.
 * **Lower Latency:** Integers are much "cheaper" for a CPU or GPU to process than floating-point numbers. This means faster predictions (inference).
