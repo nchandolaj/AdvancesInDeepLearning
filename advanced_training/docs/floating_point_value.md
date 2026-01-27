@@ -42,13 +42,6 @@ Memory-wise, a floating point is just a sequence of bits. The hardware interpret
 
 $$Value = (-1)^{Sign} \times (1.Significand) \times 2^{(Exponent - Bias)}$$
 
-### 1. The "Hidden" Bit
-Notice the $(1 + M)$ in the formula. In binary, every normalized number (except zero) starts with a 1. To save space, engineers decided not to store that 1. It is "implicit" or "hidden," giving you an extra bit of precision for free.
-
-### 2. The Exponent Bias
-To allow for negative exponents (tiny fractions) without using another sign bit, we use a **Bias**. 
-* For 32-bit floats, the bias is **127**.
-* If your exponent bits represent the number 124, the actual power used is $124 - 127 = -3$.
 
 ### Comparison of Formats
 The more bits you give to the exponent, the larger your **range**. The more bits you give to the significand, the higher your **precision**.
