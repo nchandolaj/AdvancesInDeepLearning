@@ -52,25 +52,29 @@ The more bits you give to the exponent, the larger your **range**. The more bits
 | **Double (FP64)** | 64 | $10^{-308}$ to $10^{308}$ | ~16 digits |
 | **Bfloat16** | 16 | Same as FP32 | ~3 digits |
 
-
-### 3. Special Memory States
-IEEE 754 reserves certain bit patterns in the exponent and significand for special conditions:
-* **Infinity:** Exponent is all `1`s, Significand is all `0`s.
-* **NaN (Not a Number):** Exponent is all `1`s, Significand is **not** `0`. (Occurs for $0/0$ or $\sqrt{-1}$).
-* **Denormalized:** Exponent is all `0`s. Used to represent extremely tiny numbers near zero.
-
-### 4. The "Gotchas"
-
-Floating-point math is famously weird because computers use base-2 (binary), while we use base-10. 
-
-* **Precision Errors:** Some numbers, like **0.1**, cannot be represented perfectly in binary. It becomes a repeating fraction. This is why in many languages, `0.1 + 0.2` might equal `0.30000000000000004`.
-* **Special Values:** The IEEE 754 standard reserves specific bit patterns for:
-    * **Infinity ($\infty$):** Exponent all 1s, Mantissa all 0s.
-    * **NaN (Not a Number):** Exponent all 1s, Mantissa non-zero (e.g., $0/0$).
-
 ---
 
-## 3. A Deep Dive Example: Representing 9.625
+## 3. The "Gotchas"
+
+### Precision Errors
+
+**Floating-point math** is famously weird because computers use base-2 (binary), while we use base-10. 
+
+* **Precision Errors:** Some numbers, like **0.1**, cannot be represented perfectly in binary. It becomes a repeating fraction. This is why in many languages, `0.1 + 0.2` might equal `0.30000000000000004`.
+
+### Special Memory States
+
+IEEE 754 reserves certain bit patterns in the exponent and significand for special conditions:
+
+* **Infinity:** Exponent is all `1`s, Significand is all `0`s.
+
+* **NaN (Not a Number):** Exponent is all `1`s, Significand is **not** `0`. (Occurs for $0/0$ or $\sqrt{-1}$).
+
+* **Denormalized:** Exponent is all `0`s. Used to represent extremely tiny numbers near zero.
+  
+---
+
+## 4. A Deep Dive Example: Representing 9.625
 
 Let's convert the number **9.625** into a 32-bit binary float.
 
